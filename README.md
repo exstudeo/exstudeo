@@ -12,8 +12,11 @@
   Drag in your books, browse your library, and start reading — no accounts, no servers, no compromises.
 </p>
 
+## Quick Start
+
+Visit [<kbd>https://exstudeo.github.io/</kbd>](https://exstudeo.github.io/) You can also install it as PWA!
+
 <p align="center">
-  <a href="#quick-start"><strong>Quick Start</strong></a> ·
   <a href="#features"><strong>Features</strong></a> ·
   <a href="#architecture"><strong>Architecture</strong></a> ·
   <a href="#roadmap"><strong>Roadmap</strong></a>
@@ -27,11 +30,7 @@
   <img src="https://img.shields.io/badge/pwa-ready-5A0FC8?style=flat&logo=pwa&logoColor=white" alt="PWA" />
 </p>
 
----
 
-## Quick Start
-
-Visit [<kbd>https://exstudeo.github.io/</kbd>](https://exstudeo.github.io/) You can also install it as PWA!
 
 ## Why Exstudeo?
 
