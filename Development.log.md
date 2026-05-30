@@ -1,5 +1,19 @@
 # Development Log
 
+## 2026-05-30 — Rewrote public-facing README.md
+
+### Done
+
+- **Replaced the minimal README** with a comprehensive, visually appealing project README including: centered header badge with project name, tagline ("Read. Offline. Anywhere."), feature grid (6 features in a 2×3 table), quick start guide with post-install steps, ASCII architecture diagram showing browser layers (React ↔ SW → ZenFS → IndexedDB), technology stack table, EPUB pipeline walkthrough, development commands, project structure overview, roadmap checklist, and tech stack badges.
+
+### Design decisions
+
+- **Used feature grid instead of bullet list** — a 2×3 table with emoji headers gives the page visual rhythm and makes each feature scannable.
+- **Included architecture ASCII diagram** — since Exstudeo's unique value is its offline/local-first architecture, showing the browser-internal layers (React app shell, Service Worker, ZenFS, IndexedDB) communicates this visually.
+- **EPUB pipeline section** — explains the upload-time parsing → SW interception → WASM HTML rewrite → client-side viewer flow in 4 simple steps.
+- **Roadmap section** — signals ambition (Markdown, search, knowledge graph, plugins, sync) without overpromising.
+- **Tech stack badges** — standard open-source visual cue at the bottom of the dev section.
+
 ## 2026-05-30 — EPUB viewer sidebar TOC scrolls to current chapter
 
 ### Done
