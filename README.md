@@ -29,13 +29,15 @@
 
 ---
 
+## Quick Start
+
+Visit [<kbd>https://exstudeo.github.io/</kbd>](https://exstudeo.github.io/) You can also install it as PWA!
+
 ## Why Exstudeo?
 
 Most EPUB readers are either bloated desktop apps or cloud services that hold your library hostage. **Exstudeo** is different — it's a fully self-contained web app. Your books stay on your device, served from your local filesystem through a lightweight virtual file layer. The entire app works offline after the first visit, thanks to a carefully crafted service worker.
 
 > **ex·stu·de·o** *(Latin)* — "I study thoroughly, I am eager, I strive."
-
-<br/>
 
 ## Features
 
@@ -74,9 +76,7 @@ Most EPUB readers are either bloated desktop apps or cloud services that hold yo
 
 <br/>
 
-## Quick Start
 
-Visit [<kbd>https://exstudeo.github.io/</kbd>](https://exstudeo.github.io/)
 
 ## Architecture
 
