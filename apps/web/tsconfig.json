@@ -5,7 +5,9 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
-    "baseUrl": ".",
+    // "baseUrl": ".",
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"],
       "@workspace/ui/*": ["../../packages/ui/src/*"]

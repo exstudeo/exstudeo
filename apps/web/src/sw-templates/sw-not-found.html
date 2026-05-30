@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Not Found — Exstudeo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    main { text-align: center; }
+    h1 { font-size: 5rem; font-weight: 800; line-height: 1; }
+    p { margin-top: 1rem; font-size: 1.125rem; color: #a1a1aa; }
+    code {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: #a1a1aa;
+      word-break: break-all;
+    }
+    a {
+      display: inline-block;
+      margin-top: 1.5rem;
+      color: #fafafa;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+    a:hover { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>404</h1>
+    <p>The service worker could not find the page at:</p>
+    <code>{{url}}</code>
+    {{reason}}
+    <a href="/">Go home</a>
+  </main>
+</body>
+</html>

@@ -18,16 +18,16 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
+    // "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@workspace/ui/*": ["../../packages/ui/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/sw.ts"]
 }

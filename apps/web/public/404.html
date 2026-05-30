@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Exstudeo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    main { text-align: center; }
+    h1 { font-size: 5rem; font-weight: 800; line-height: 1; }
+    p { margin-top: 1rem; font-size: 1.125rem; color: #a1a1aa; }
+    a {
+      display: inline-block;
+      margin-top: 1.5rem;
+      color: #fafafa;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+    a:hover { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>404</h1>
+    <p>Redirecting to the app&hellip;</p>
+    <a href="/">Go home</a>
+  </main>
+  <script>
+    (function () {
+      // Capture the original URL components before the SW or 404.html
+      // replaces anything. This runs in the browser context where
+      // location.hash is available (unlike the Service Worker).
+      var params = new URLSearchParams();
+      params.set("redirect", location.pathname + location.search);
+
+      var hash = location.hash;
+      if (hash) {
+        // Strip leading '#' — the app will re-attach it
+        params.set("fragment", hash.slice(1));
+      }
+
+      // Redirect to root with the original URL encoded as query params.
+      // Using replace() avoids polluting browser history with the error page.
+      location.replace("/?" + params.toString());
+    })();
+  </script>
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=/?redirect=" />
+  </noscript>
+</body>
+</html>

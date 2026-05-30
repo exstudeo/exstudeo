@@ -1,21 +1,53 @@
-# shadcn/ui monorepo template
+# Exstudeo
 
-This is a Vite monorepo template with shadcn/ui.
+A web-based reader/viewer for notes and books in multiple formats.
 
-## Adding components
+> **Status**: Early development — scaffolded from `shadcn@latest init --preset b0`
 
-To add components to your app, run the following command at the root of your `web` app:
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 19 + TypeScript (strict) |
+| Build | Vite 7 + Turborepo |
+| UI | shadcn/ui (base-nova style) + Tailwind CSS 4 |
+| Icons | Lucide React |
+| Fonts | Inter (variable) |
+| Monorepo | npm workspaces + Turborepo |
+
+## Quick Start
 
 ```bash
-pnpm dlx shadcn@latest add button -c apps/web
+npm install
+npm run dev        # Start dev server (apps/web)
+npm run build      # Build all packages
+npm run lint       # Lint all packages
+npm run typecheck  # Type-check all packages
 ```
 
-This will place the ui components in the `packages/ui/src/components` directory.
+## Project Structure
 
-## Using components
+```
+exstudeo/
+├── apps/web/          # PWA frontend (Vite + React)
+├── packages/ui/       # Shared UI components (shadcn/ui)
+├── openspec/          # OpenSpec change management
+├── used_doc/          # Reference documentation
+```
 
-To use the components in your app, import them from the `ui` package.
+## Adding Components
+
+```bash
+npm exec shadcn@latest add <component> -c apps/web
+```
+
+Components are installed into `packages/ui/src/components/` and imported as:
 
 ```tsx
 import { Button } from "@workspace/ui/components/button";
 ```
+
+## Documentation
+
+- `dev.readme.md` — Developer reference with full architecture and conventions
+- `AGENTS.md` — Instructions for AI agents working in this codebase

@@ -1,19 +1,56 @@
-import { Button } from "@workspace/ui/components/button"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router"
+import { useNavigate } from "react-router"
+import { useEffect } from "react"
+import { AppShell } from "@/components/layout/app-shell"
+import { FileExplorerPage } from "@/components/file-explorer/page"
+import { ReaderPage } from "@/components/reader/page"
+import { EpubExplorerPage } from "@/components/epub-explorer/page"
+import { SettingsPage } from "@/components/settings/page"
+import { SPA_ROUTES } from "./route.path"
+import { parseRedirectParams } from "./lib/redirect-handler"
+
+/**
+ * Handles redirect parameters (?redirect= and ?fragment=) on initial load.
+ * These are set by 404.html (cold visit — no SW installed yet).
+ * The SW no longer uses redirect parameters; it serves the precached app
+ * shell directly while preserving the original URL.
+ */
+function RedirectHandler() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const result = parseRedirectParams()
+    if (!result) return
+
+    if (result.isSpaRoute) {
+      // Known SPA route — navigate client-side
+      navigate(result.targetPath, { replace: true })
+    } else {
+      // Unknown path — let the browser navigate (SW will serve a 404)
+      location.replace(result.targetPath)
+    }
+  }, [navigate])
+
+  return null
+}
 
 export function App() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+    <BrowserRouter>
+      <RedirectHandler />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Navigate to={SPA_ROUTES[0]} replace />} />
+          <Route path={SPA_ROUTES[0].slice(1)} element={<FileExplorerPage />} />  
+          <Route path={SPA_ROUTES[1].slice(1)} element={<EpubExplorerPage />} />
+          <Route path={SPA_ROUTES[2].slice(1)} element={<SettingsPage />} />
+          {/*
+           * Catch-all for unmatched routes (e.g., `/filesxx`).
+           * Redirect to root — the SW will handle 404 if needed.
+           */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }

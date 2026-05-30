@@ -1,0 +1,26 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+context: |
+  Tech stack: TypeScript (strict), React 19, Vite 7, Tailwind CSS 4, shadcn/ui (base-nova), Turborepo, npm workspaces
+  Conventions: TSDoc on exports, modular/compositional patterns, utility-first abstractions, semantic CSS tokens
+  Domain: Note and book reader/viewer supporting multiple formats (Markdown, EPUB, etc.)
+  Frontend: PWA with service worker for offline reading, client-side storage (IndexedDB planned)
+  Documentation: AGENTS.md for AI instructions, readme.md for developer docs, nested per directory
+  PackageManager: npm
+  Monorepo: Turborepo with apps/* and packages/* workspaces
+  Path aliases: @/ -> apps/web/src/, @workspace/ui/* -> packages/ui/src/*
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+rules:
+  proposal:
+    - Keep proposals focused on what and why, not implementation details
+  design:
+    - Reference specific components from shadcn/ui when applicable
+    - Mention TypeScript types and data flow
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task should produce a single logical change
