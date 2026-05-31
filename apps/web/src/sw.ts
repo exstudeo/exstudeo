@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 /// <reference types="vite/client" />
 
-import { createHandlerBoundToURL, precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from "workbox-precaching"
-import { NavigationRoute, registerRoute } from "workbox-routing"
+import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from "workbox-precaching"
+import { registerRoute } from "workbox-routing"
 import { isSpaRoutePath } from "./route.path"
 import { renderTemplate, registerStrategies } from "./sw-routes/index"
 import { createEpubRouteStrategy } from "./sw-routes/epub"
@@ -103,7 +103,7 @@ if (manifest && manifest.length > 0) {
 
   // // ── 3. EPUB resources route ────────────────────────────────────────────
   // // Serve `/@epubs/*` files from the user's ZenFS-mounted directories.
-  // registerStrategies([createEpubRouteStrategy()])
+  registerStrategies([createEpubRouteStrategy()])
 
   // ── 4. 404 catch-all ──────────────────────────────────────────────────
   // Catches navigations that don't match any known route (root, SPA,
