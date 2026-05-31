@@ -15,17 +15,7 @@ export default defineConfig({
       filename: "sw.ts",
       // Inject-manifest specific Workbox options
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,json}"],  // ← Include HTML
-        manifestTransforms: [
-          async (entries) => {
-            // Keep only index.html, remove all other HTML files
-            const manifest = entries.filter(({ url }) => {
-              // Keep index.html and non-HTML files
-              return url === 'index.html' || !url.endsWith('.html')
-            })
-            return { manifest }
-          },
-        ],
+        globPatterns: ["**/*.{js,css,svg,png,ico,woff2,json}"],  
       },
       devOptions: {
         enabled: true,
