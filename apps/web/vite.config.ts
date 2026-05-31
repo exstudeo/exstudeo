@@ -59,17 +59,22 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
-        "epub-assets/epub-viewer": path.resolve(__dirname, "src/viewer/epub-viewer.ts"),
+
+        // FIXED: Removed "epub-assets/" slash from the key to keep Rollup's path engine flat
+        "epub-viewer": path.resolve(__dirname, "src/viewer/epub-viewer.ts"),
+
+
       },
       output: {
-        // Keep the viewer script name stable (no hash) so the SW can
-        // inject it with a fixed path: /epub-assets/epub-viewer.js
+        // FIXED: Manually route the file into the subfolder based on its flat chunk name
         entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === "epub-assets/epub-viewer") {
+          if (chunkInfo.name === "epub-viewer") {
             return "epub-assets/epub-viewer.js"
           }
           return "assets/[name]-[hash].js"
         },
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]"
       },
     },
   },
