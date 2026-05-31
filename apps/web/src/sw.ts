@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 /// <reference types="vite/client" />
 
-import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from "workbox-precaching"
-import { registerRoute } from "workbox-routing"
+import { createHandlerBoundToURL, precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from "workbox-precaching"
+import { NavigationRoute, registerRoute } from "workbox-routing"
 import { isSpaRoutePath } from "./route.path"
 import { renderTemplate, registerStrategies } from "./sw-routes/index"
 import { createEpubRouteStrategy } from "./sw-routes/epub"
@@ -38,6 +38,13 @@ if (manifest && manifest.length > 0) {
   precacheAndRoute(manifest)
   cleanupOutdatedCaches()
 
+
+  registerRoute(
+    new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+      denylist: [/^\/api\//, /\.json$/],
+    })
+  )
+
   // ── 1. SPA route handler ────────────────────────────────────────────────
   // Serve the precached app shell directly for known SPA routes, keeping
   // the original URL intact so React Router can match and render the
@@ -48,20 +55,21 @@ if (manifest && manifest.length > 0) {
       request.mode === "navigate" && isSpaRoutePath(url.pathname),
     async ({ url }) => {
 
-
-
       // The precache manifest stores the app shell as "index.html", not as "/". matchPrecache("/index.html") resolves to the correct cache key; matchPrecache("/") would not find a match.
       // another possible solution would to use `vite-plugin-pwa/pwaOptions.navigationFallback` with `navigateFallbackAllowlist` to let workbox handle this.
       const response = await matchPrecache("/index.html")
-      if (response) return response
+      if (response) { return response }
 
 
-      // Basically Useless, even chrome don't suppport sw redirect
-      // Fallback: if the precached root isn't available, redirect so the
-      // app can attempt client-side navigation via ?redirect=.
-      const params = new URLSearchParams()
-      params.set("redirect", url.pathname + url.search)
-      return Response.redirect("/?" + params.toString(), 302)
+
+      // Fallback: if the precached entry point isn't available, return a minimal error response
+      return new Response('App shell not available offline', {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'Content-Type': 'text/plain' },
+      })
+
+
     },
   )
 

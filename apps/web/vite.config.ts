@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react"
 import { VitePWA } from "vite-plugin-pwa"
 import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -16,10 +15,17 @@ export default defineConfig({
       filename: "sw.ts",
       // Inject-manifest specific Workbox options
       injectManifest: {
-        // Include font files (woff2) in the precache manifest for offline use.
-        // Also includes the built viewer script (epub-assets/epub-viewer.js)
-        // and the viewer stylesheet (epub-assets/epub-style.css).
-        globPatterns: ["**/*.{js,css,html,json,png,svg,ico,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,json}"],  // ← Include HTML
+        manifestTransforms: [
+          async (entries) => {
+            // Keep only index.html, remove all other HTML files
+            const manifest = entries.filter(({ url }) => {
+              // Keep index.html and non-HTML files
+              return url === 'index.html' || !url.endsWith('.html')
+            })
+            return { manifest }
+          },
+        ],
       },
       devOptions: {
         enabled: true,
@@ -33,7 +39,7 @@ export default defineConfig({
         display: "standalone",
         background_color: "#ffffff",
         theme_color: "#000000",
-        "icons": [
+        icons: [
           {
             src: "/icon.svg",
             sizes: "192x192 512x512",
@@ -59,23 +65,15 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
-
-        // FIXED: Removed "epub-assets/" slash from the key to keep Rollup's path engine flat
-        "epub-viewer": path.resolve(__dirname, "src/viewer/epub-viewer.ts"),
-
-
+        // CLEAN FIX: Provide a dedicated HTML file rather than a raw JS/TS file path
+        "epub-viewer": path.resolve(__dirname, "epub-viewer.html"),
       },
       output: {
-        // FIXED: Manually route the file into the subfolder based on its flat chunk name
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === "epub-viewer") {
-            return "epub-assets/epub-viewer.js"
-          }
-          return "assets/[name]-[hash].js"
-        },
+        // Keeps files neatly separated without breaking Vite's internal HTML pipeline
+        entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]"
-      },
+      }
     },
   },
 })
