@@ -39,12 +39,6 @@ if (manifest && manifest.length > 0) {
   cleanupOutdatedCaches()
 
 
-  registerRoute(
-    new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-      denylist: [/^\/api\//, /\.json$/],
-    })
-  )
-
   // ── 1. SPA route handler ────────────────────────────────────────────────
   // Serve the precached app shell directly for known SPA routes, keeping
   // the original URL intact so React Router can match and render the
@@ -107,9 +101,9 @@ if (manifest && manifest.length > 0) {
     },
   )
 
-  // ── 3. EPUB resources route ────────────────────────────────────────────
-  // Serve `/@epubs/*` files from the user's ZenFS-mounted directories.
-  registerStrategies([createEpubRouteStrategy()])
+  // // ── 3. EPUB resources route ────────────────────────────────────────────
+  // // Serve `/@epubs/*` files from the user's ZenFS-mounted directories.
+  // registerStrategies([createEpubRouteStrategy()])
 
   // ── 4. 404 catch-all ──────────────────────────────────────────────────
   // Catches navigations that don't match any known route (root, SPA,

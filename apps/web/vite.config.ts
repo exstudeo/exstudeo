@@ -15,7 +15,7 @@ export default defineConfig({
       filename: "sw.ts",
       // Inject-manifest specific Workbox options
       injectManifest: {
-        globPatterns: ["**/*.{js,css,svg,png,ico,woff2,json}"],  
+        globPatterns: ["index.html","**/*.{js,css,svg,png,ico,woff2,json}"],  
       },
       devOptions: {
         enabled: true,
