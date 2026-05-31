@@ -15,7 +15,7 @@ export default defineConfig({
       filename: "sw.ts",
       // Inject-manifest specific Workbox options
       injectManifest: {
-        globPatterns: ["index.html","**/*.{js,css,svg,png,ico,woff2,json}"],  
+        globPatterns: ["index.html", "**/*.{js,css,svg,png,ico,woff2,json}"],
       },
       devOptions: {
         enabled: true,
@@ -55,12 +55,18 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
-        // CLEAN FIX: Provide a dedicated HTML file rather than a raw JS/TS file path
-        "epub-viewer": path.resolve(__dirname, "epub-viewer.html"),
+        "epub-viewer": path.resolve(__dirname, "src/viewer/epub-viewer.ts"),
       },
       output: {
-        // Keeps files neatly separated without breaking Vite's internal HTML pipeline
-        entryFileNames: "assets/[name]-[hash].js",
+
+
+        // Dynamically route the entry file based on its input key
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name === 'epub-viewer') {
+            return 'epub-assets/[name].js'; // Removes hash as requested, or use [name]-[hash].js
+          }
+          return 'assets/[name]-[hash].js';
+        },
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]"
       }
