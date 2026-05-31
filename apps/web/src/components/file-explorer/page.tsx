@@ -8,14 +8,15 @@
  */
 
 import { useEffect, useState, useCallback } from "react"
-import { useZenFS } from "@/hooks/use-zenfs"
+import { useZenFSSnapshot } from "@/hooks/use-zenfs"
+import { promises } from "@/lib/zenfs"
 import { useConfig } from "@/hooks/use-config"
 import { MountsDialog } from "@/components/layout/mounts-dialog"
 import { PathBreadcrumb } from "./path-breadcrumb"
 import { DirectoryTable, type FileEntry } from "./directory-table"
 
 export function FileExplorerPage() {
-  const zenfs = useZenFS()
+  const snap = useZenFSSnapshot()
   const { config } = useConfig()
   const [currentPath, setCurrentPath] = useState("/")
   const [entries, setEntries] = useState<FileEntry[] | null>(null)
@@ -23,7 +24,7 @@ export function FileExplorerPage() {
 
   // Load directory entries asynchronously
   useEffect(() => {
-    if (!zenfs.hasEntries) {
+    if (!snap.hasEntries) {
       setEntries([])
       setLoading(false)
       return
@@ -36,10 +37,10 @@ export function FileExplorerPage() {
 
       let names: string[]
       try {
-        names = (await zenfs.fs.promises.readdir(currentPath)) as string[]
+        names = (await promises.readdir(currentPath)) as string[]
         if (import.meta.env.DEV){
           console.log(`[FileExplorer] Loaded entries for "${currentPath}":`, names)
-          console.log(`[FileExplorer] Current mounts:`, zenfs.entries)
+          console.log(`[FileExplorer] Current mounts:`, snap.entries)
         }
       } catch {
         setLoading(false)
@@ -62,7 +63,7 @@ export function FileExplorerPage() {
         const fullPath = currentPath === "/" ? `/${name}` : `${currentPath}/${name}`
 
         try {
-          const stat = await zenfs.fs.promises.stat(fullPath)
+          const stat = await promises.stat(fullPath)
           const entry: FileEntry = {
             name,
             path: fullPath,
@@ -95,7 +96,7 @@ export function FileExplorerPage() {
     }
 
     loadEntries()
-  }, [zenfs.hasEntries, currentPath, config, zenfs.entries])
+  }, [snap.hasEntries, currentPath, config, snap.entries])
 
   const handleNavigate = useCallback((path: string) => {
     setCurrentPath(path)
@@ -106,13 +107,13 @@ export function FileExplorerPage() {
   }, [])
 
 
-    if (!zenfs.hasEntries) {
+    if (!snap.hasEntries) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
         <p className="text-muted-foreground text-sm">
           No file system configured. Add a directory mount to get started.
         </p>
-        <MountsDialog zenfs={zenfs} />
+        <MountsDialog entries={snap.entries} deniedEntries={snap.deniedEntries} />
       </div>
     )
   }
@@ -145,7 +146,7 @@ export function FileExplorerPage() {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2">
         <PathBreadcrumb path={currentPath} onNavigate={handleNavigate} />
-        <MountsDialog zenfs={zenfs} />
+        <MountsDialog entries={snap.entries} deniedEntries={snap.deniedEntries} />
       </div>
 
       {/* Directory listing */}

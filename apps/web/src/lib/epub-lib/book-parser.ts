@@ -148,7 +148,7 @@ function resolveHref(href: string, baseDir: string): string {
 function parseSpine(opfDoc: Document, opfDir: string): SpineItem[] {
   // Build a manifest lookup: manifest item id → href
   const manifestMap = new Map<string, string>()
-  const itemElements = opfDoc.querySelectorAll("manifest > item, manifest > item")
+  // const itemElements = opfDoc.querySelectorAll("manifest > item, manifest > item")
   // Also try namespaced selectors
   const allItems = opfDoc.querySelectorAll("item")
   for (const item of allItems) {

@@ -7,7 +7,7 @@
  * @module mounts-dialog
  */
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -26,24 +26,29 @@ import { MoreHorizontal, Plus, FolderOpen, Power, PowerOff, Trash2, RefreshCw, A
 import {
   normaliseMountPath,
   isValidMountPath,
-  saveMount as persistMount,
   requestHandlePermission,
+  requestStoragePersistence,
   type MountEntry,
   type BackendConfig,
 } from "@/lib/mount-store"
 import { storeNameFromPath } from "@/lib/backend-resolver"
-import { mountBackend } from "@/lib/zenfs"
-import type { ZenFSState } from "@/hooks/use-zenfs"
+import {
+  addMountEntry,
+  toggleMountEntry,
+  removeMountEntry,
+  reconnectMountEntry,
+} from "@/lib/zenfs"
+import type { ZenFSSnapshot } from "@/hooks/use-zenfs"
 
 type BackendKindSelect = BackendConfig["kind"]
 
 interface MountsDialogProps {
-  zenfs: Pick<ZenFSState, "entries" | "toggleMount" | "removeMount" | "deniedEntries" | "reconnectMount">
+  entries: ZenFSSnapshot["entries"]
+  deniedEntries: ZenFSSnapshot["deniedEntries"]
 }
 
-export function MountsDialog({ zenfs }: MountsDialogProps) {
+export function MountsDialog({ entries, deniedEntries }: MountsDialogProps) {
   const [open, setOpen] = useState(false)
-  const _ = useEffect(() => {}, [zenfs.entries])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -59,20 +64,20 @@ export function MountsDialog({ zenfs }: MountsDialogProps) {
         <AddMountForm onAdded={() => setOpen(false)} />
 
         <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-          {zenfs.entries.length === 0 && (
+          {entries.length === 0 && (
             <p className="text-muted-foreground py-4 text-center text-sm">
               No mounts yet. Add a directory or IndexedDB store to get started.
             </p>
           )}
 
-          {zenfs.entries.map((entry) => (
+          {entries.map((entry) => (
             <MountRow
               key={entry.id}
               entry={entry}
-              deniedReason={zenfs.deniedEntries.get(entry.id) ?? undefined}
-              onReconnect={() => zenfs.reconnectMount(entry.id)}
-              onToggle={() => zenfs.toggleMount(entry)}
-              onRemove={() => zenfs.removeMount(entry.id)}
+              deniedReason={deniedEntries.get(entry.id) ?? undefined}
+              onReconnect={() => reconnectMountEntry(entry.id)}
+              onToggle={() => toggleMountEntry(entry)}
+              onRemove={() => removeMountEntry(entry.id)}
             />
           ))}
         </div>
@@ -126,8 +131,7 @@ function AddMountForm({ onAdded }: { onAdded: () => void }) {
           mounted: true,
         }
 
-        await persistMount(entry)
-        await mountBackend(entry)
+        await addMountEntry(entry)
       } else {
         // ── IndexedDB: no picker, just name + path ─────────────────────
         const entry: MountEntry = {
@@ -138,8 +142,10 @@ function AddMountForm({ onAdded }: { onAdded: () => void }) {
           mounted: true,
         }
 
-        await persistMount(entry)
-        await mountBackend(entry)
+        // request for persistent storage in best effort.
+        await void requestStoragePersistence()
+        
+        await addMountEntry(entry)
       }
 
       onAdded()

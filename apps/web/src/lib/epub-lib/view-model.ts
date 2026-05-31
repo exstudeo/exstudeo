@@ -24,7 +24,6 @@
 
 import { type IEpub, type EpubCollection, isEpub } from "./type"
 import { type AppConfig } from "@/config"
-import type { promises as ZenFSPromises } from "@/lib/zenfs"
 import { notifyServiceWorker } from "@/lib/zenfs"
 import { parseBookStructure } from "./book-parser"
 import type { BookStructure } from "./book-parser"

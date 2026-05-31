@@ -14,7 +14,8 @@
  */
 
 import { useCallback, useRef } from "react"
-import { useZenFS } from "@/hooks/use-zenfs"
+import { useZenFSSnapshot } from "@/hooks/use-zenfs"
+import { promises } from "@/lib/zenfs"
 import { useConfig } from "@/hooks/use-config"
 import { Button } from "@workspace/ui/components/button"
 import { FolderPlusIcon, UploadIcon } from "lucide-react"
@@ -202,10 +203,10 @@ function EpubExplorerContent() {
  * Otherwise wraps the content in {@link EpubContextProvider}.
  */
 export function EpubExplorerPage() {
-  const zenfs = useZenFS()
+  const snap = useZenFSSnapshot()
   const { config } = useConfig()
 
-  if (!zenfs.hasEntries) {
+  if (!snap.hasEntries) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
         <p className="text-muted-foreground text-sm">
@@ -216,7 +217,7 @@ export function EpubExplorerPage() {
   }
 
   return (
-    <EpubContextProvider appConfig={config} promises={zenfs.promises}>
+    <EpubContextProvider appConfig={config} promises={promises}>
       <EpubExplorerContent />
     </EpubContextProvider>
   )

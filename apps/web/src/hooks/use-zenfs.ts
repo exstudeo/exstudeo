@@ -1,37 +1,23 @@
 /**
- * React hook for consuming the global ZenFS singleton.
+ * React hook for consuming the global ZenFS mount state reactively.
  *
- * Provides reactive access to `fs`, `promises`, mount entries, and derived
- * state (e.g., mounted paths). Components using this hook re-render whenever
- * mounts change.
+ * Provides read-only access to mount entries, denied entries, and a
+ * `hasEntries` convenience flag. Components using this hook re-render
+ * whenever mounts change.
+ *
+ * For filesystem operations, import `{ fs, promises }` directly from
+ * `@/lib/zenfs`. For mutations, use the standalone mutator functions
+ * (`addMountEntry`, `toggleMountEntry`, `removeMountEntry`, `reconnectMountEntry`).
  *
  * @module use-zenfs
  */
 
-import { useSyncExternalStore, useCallback } from "react"
-import {
-  fs,
-  promises,
-  subscribe,
-  getSnapshot,
-  mountBackend,
-  unmountBackend,
-  reconnectMount as reconnectMountInternal,
-  registerMountEntry,
-  deregisterMountEntry,
-} from "@/lib/zenfs"
-import {
-  saveMount,
-  deleteMount as deleteMountFromStore,
-  updateMount,
-  type MountEntry,
-} from "@/lib/mount-store"
+import { useSyncExternalStore, useMemo } from "react"
+import { subscribe, getSnapshot } from "@/lib/zenfs"
+import type { MountEntry } from "@/lib/mount-store"
 
-export interface ZenFSState {
-  /** Synchronous ZenFS filesystem API. */
-  fs: typeof fs
-  /** Promise-based ZenFS filesystem API. */
-  promises: typeof promises
+/** Read-only snapshot of ZenFS mount state exposed by {@link useZenFSSnapshot}. */
+export interface ZenFSSnapshot {
   /** Whether ZenFS has any mount entries. */
   hasEntries: boolean
   /** All mount entries (including unmounted). */
@@ -42,80 +28,36 @@ export interface ZenFSState {
    * appear here when `isAvailable()` returns false.
    */
   deniedEntries: ReadonlyMap<string, string>
-  /** Persist a new mount entry and mount it. */
-  addMount: (entry: MountEntry) => Promise<void>
-  /** Toggle a mount entry between mounted/unmounted. */
-  toggleMount: (entry: MountEntry) => Promise<void>
-  /** Permanently remove a mount entry. */
-  removeMount: (id: string) => Promise<void>
-  /**
-   * Reconnect a denied mount entry.
-   * For FSA entries, re-prompts the user for directory permission.
-   * For IndexedDB entries, re-attempts mount without prompting.
-   */
-  reconnectMount: (id: string) => Promise<void>
 }
 
 /**
- * Hook that provides reactive access to the global ZenFS state.
+ * Hook that provides reactive read-only access to the ZenFS mount state.
+ *
+ * The returned object is reference-stable across renders unless the
+ * underlying mount state has changed (guaranteed by `useMemo`).
  *
  * @example
  * ```tsx
  * function FileList() {
- *   const { fs, entries, mountedPaths } = useZenFS()
- *   // ...
+ *   const { entries, hasEntries } = useZenFSSnapshot()
+ *   // read FS with: import { promises } from "@/lib/zenfs"
  * }
  * ```
  */
-export function useZenFS(): ZenFSState {
+export function useZenFSSnapshot(): ZenFSSnapshot {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot)
 
-const addMount = useCallback(async (entry: MountEntry) => {
-  await saveMount(entry)          // 1. persist to IndexedDB
-
-  if (entry.mounted) {
-    await mountBackend(entry)     // 2a. mount in ZenFS + register in state
-  } else {
-    registerMountEntry(entry)     // 2b. register in state only, no ZenFS mount
-  }
-}, [])
-const toggleMount = useCallback(async (entry: MountEntry) => {
-  if (entry.mounted) {
-    await unmountBackend(entry)
-    await updateMount(entry.id, { mounted: false })
-  } else {
-    await mountBackend({ ...entry, mounted: true })
-    await updateMount(entry.id, { mounted: true })
-  }
-}, [])
-
-
-const removeMount = useCallback(async (id: string) => {
-  const { entries } = getSnapshot()
-  const entry = entries.find((e) => e.id === id)
-  if (entry?.mounted) {
-    await unmountBackend(entry)
-  }
-  await deleteMountFromStore(id)   // remove from IndexedDB
-  deregisterMountEntry(id)         // remove from _mountEntries + notify
-}, [])
-
-  const reconnectMount = useCallback(
-    async (id: string) => {
-      await reconnectMountInternal(id)
-    },
-    [],
+  return useMemo(
+    () => ({
+      hasEntries: snapshot.entries.length > 0,
+      entries: snapshot.entries,
+      deniedEntries: snapshot.deniedEntries,
+    }),
+    [snapshot.entries, snapshot.deniedEntries],
   )
-
-  return {
-    fs,
-    promises,
-    hasEntries: snapshot.entries.length > 0,
-    entries: snapshot.entries,
-    deniedEntries: snapshot.deniedEntries,
-    addMount,
-    toggleMount,
-    removeMount,
-    reconnectMount,
-  }
 }
+
+/**
+ * @deprecated Use {@link useZenFSSnapshot} instead.
+ */
+export const useZenFS = useZenFSSnapshot

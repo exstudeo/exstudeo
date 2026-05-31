@@ -18,7 +18,7 @@
  * @module epub-tree
  */
 
-import { useCallback, useMemo } from "react"
+import { useMemo } from "react"
 import {
   TreeView,
   type TreeDataItem,

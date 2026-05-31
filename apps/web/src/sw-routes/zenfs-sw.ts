@@ -25,7 +25,10 @@ import {
 // ── Internal state ────────────────────────────────────────────────────────
 
 let _configured = false
+
+// silence unused variable warning — this is set by the message event listener in sw.ts
 let _mountsDirty = false
+void _mountsDirty 
 
 /** Set of `${mountPath}::${backendKind}` strings from the last successful
  *  configure — used to avoid re-mounting the same paths, which would throw

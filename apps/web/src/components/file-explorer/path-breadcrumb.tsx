@@ -25,9 +25,9 @@ export function PathBreadcrumb({ path, onNavigate }: PathBreadcrumbProps) {
   // Split path into segments: "/notes/subdir/deep" → ["notes", "subdir", "deep"]
   const segments = path.split("/").filter(Boolean)
 
-  if (segments.length === 0) {
-    return null
-  }
+  // if (segments.length === 0) {
+  //   return null
+  // }
 
   return (
     <Breadcrumb>

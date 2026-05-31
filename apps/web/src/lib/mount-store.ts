@@ -251,3 +251,45 @@ export async function queryHandlePermission(
   const result = await handle.queryPermission({ mode: "readwrite" })
   return result === "granted"
 }
+
+
+
+/**
+ * Alerts the user and requests persistent storage permission if not already granted.
+ * @returns {Promise<boolean>} Resolves to true if storage is successfully persisted, false otherwise.
+ */
+export async function requestStoragePersistence(): Promise<boolean> {
+  // 1. Check if the StorageManager and required methods are supported
+  if (!navigator.storage || !navigator.storage.persist || !navigator.storage.persisted) {
+    console.warn("Storage Persistence API is not supported in this browser.");
+    return false;
+  }
+
+  try {
+    // 2. Skip if persistence is already granted
+    const alreadyPersisted = await navigator.storage.persisted();
+    if (alreadyPersisted) {
+      console.log("Storage is already persistent. Skipping request.");
+      return true;
+    }
+
+    // 3. Alert the user before requesting privilege
+    alert(
+      "This application will now request persistent storage to prevent your data from being deleted by the browser."
+    );
+
+    // 4. Request persistence
+    const isPersisted = await navigator.storage.persist();
+    
+    if (isPersisted) {
+      console.log("Storage successfully marked as persistent.");
+    } else {
+      console.warn("Storage persistence request was denied by the browser.");
+    }
+    
+    return isPersisted;
+  } catch (error) {
+    console.error("An error occurred while handling storage persistence:", error);
+    return false;
+  }
+}

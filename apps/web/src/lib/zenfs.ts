@@ -17,11 +17,13 @@ import {
 } from "@zenfs/core"
 import {
   requestHandlePermission,
+  saveMount,
+  deleteMount as deleteMountFromStore,
+  updateMount,
   type MountEntry,
 } from "@/lib/mount-store"
 import {
   resolveBackendConfig,
-  BackendValidationError,
 } from "@/lib/backend-resolver"
 
 // ── Reactive state ────────────────────────────────────────────────────────
@@ -190,6 +192,10 @@ export async function mountBackend(entry: MountEntry): Promise<void> {
 export async function unmountBackend(entry: MountEntry): Promise<void> {
   try {
     zenfsUmount(entry.mountPath)
+
+    // remove the mounting directory.
+    await zenfsPromises.rmdir(entry.mountPath)
+
     const idx = _mountEntries.findIndex((e) => e.id === entry.id)
     if (idx !== -1) {
       _mountEntries[idx] = { ..._mountEntries[idx], mounted: false }
@@ -214,4 +220,75 @@ export async function getMountedPaths(): Promise<string[]> {
   } catch {
     return []
   }
+}
+
+// ── Standalone mount mutators ─────────────────────────────────────────────
+
+/**
+ * Persist a new mount entry and mount it in ZenFS (if `mounted` is true).
+ *
+ * Combines persistence to IndexedDB, ZenFS mount/registration, and
+ * reactive notification into a single operation. This is the canonical
+ * entry point for adding mounts — used by both the UI dialog and
+ * any future mount-creation flows.
+ *
+ * @param entry - The mount entry to persist and mount.
+ */
+export async function addMountEntry(entry: MountEntry): Promise<void> {
+  await saveMount(entry)
+
+  if (entry.mounted) {
+    await mountBackend(entry)
+  } else {
+    registerMountEntry(entry)
+  }
+}
+
+/**
+ * Toggle a mount entry between mounted and unmounted states.
+ *
+ * Persists the updated `mounted` flag to IndexedDB and performs the
+ * corresponding ZenFS mount or unmount operation.
+ *
+ * @param entry - The mount entry to toggle.
+ */
+export async function toggleMountEntry(entry: MountEntry): Promise<void> {
+  if (entry.mounted) {
+    await unmountBackend(entry)
+    await updateMount(entry.id, { mounted: false })
+  } else {
+    await mountBackend({ ...entry, mounted: true })
+    await updateMount(entry.id, { mounted: true })
+  }
+}
+
+/**
+ * Permanently remove a mount entry and all its artifacts.
+ *
+ * Unmounts the backend from ZenFS (if mounted), deletes the entry from
+ * IndexedDB, and removes it from reactive state.
+ *
+ * @param id - The mount entry id to remove.
+ */
+export async function removeMountEntry(id: string): Promise<void> {
+  const entry = _mountEntries.find((e) => e.id === id)
+  if (entry?.mounted) {
+    await unmountBackend(entry)
+  }
+  await deleteMountFromStore(id)
+  deregisterMountEntry(id)
+}
+
+/**
+ * Reconnect a previously denied mount entry.
+ *
+ * For FSA entries, re-prompts the user for directory permission.
+ * For IndexedDB entries, re-attempts mount without prompting.
+ *
+ * Delegates to {@link reconnectMount}.
+ *
+ * @param id - The mount entry id to reconnect.
+ */
+export async function reconnectMountEntry(id: string): Promise<void> {
+  await reconnectMount(id)
 }

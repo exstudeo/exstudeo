@@ -39,6 +39,29 @@
 - **Roadmap section** — signals ambition (Markdown, search, knowledge graph, plugins, sync) without overpromising.
 - **Tech stack badges** — standard open-source visual cue at the bottom of the dev section.
 
+## 2026-05-31 — Refactor useZenFS to useZenFSSnapshot with standalone mutator functions
+
+### Done
+
+- **Extracted standalone mutator functions** (`addMountEntry`, `toggleMountEntry`, `removeMountEntry`, `reconnectMountEntry`) into `lib/zenfs.ts`. Each combines `mount-store` persistence + ZenFS operations + `notify()` — the same logic previously in `use-zenfs.ts` callbacks. Added TSDoc for all four.
+- **Renamed `useZenFS` → `useZenFSSnapshot`** — hook now returns only `{ entries, deniedEntries, hasEntries }` wrapped in `useMemo` for reference stability. `fs`, `promises`, and mutator callbacks removed from return type. Old `useZenFS` kept as `@deprecated` alias.
+- **Renamed `ZenFSState` → `ZenFSSnapshot`** — interface shrunk to read-only reactive state only.
+- **Simplified `MountsDialog` props** from `Pick<ZenFSState, ...>` to `{ entries, deniedEntries }`. Removed the `useEffect(() => {}, [zenfs.entries])` force-re-render anti-pattern (replaced by `useMemo` in hook). `AddMountForm` now uses unified `addMountEntry()` instead of ad-hoc `persistMount` + `mountBackend`.
+- **Updated page consumers**: `FileExplorerPage` imports `{ promises }` from `@/lib/zenfs` directly instead of `zenfs.fs.promises`. `EpubExplorerPage` passes `promises` directly to `EpubContextProvider`.
+
+### Design decisions
+
+- **Why standalone mutators in `lib/zenfs.ts`?** The hook was a thin wrapper over non-React logic. `AddMountForm` already bypassed the hook's `addMount` — this unified both call sites.
+- **Why `useMemo`?** `useSyncExternalStore` triggers re-renders, but the returned object should be reference-stable across renders when state hasn't changed. This replaces the `MountsDialog` force-rerender hack.
+- **Why `fs`/`promises` removed from hook?** They're immutable global singletons from `@zenfs/core`. Passing them through the hook misleadingly implied the hook owned them.
+- **Why keep `@deprecated useZenFS` alias?** Smooth migration path — no crashes for any uncaught references.
+
+### Verification
+
+- `tsc --noEmit`: clean
+- `vitest --run`: 6/6 passed (2 files)
+- `npm run build`: clean (both Vite and SW)
+
 ## 2026-05-30 — EPUB viewer sidebar TOC scrolls to current chapter
 
 ### Done
@@ -375,6 +398,18 @@
 ### Design Decisions
 
 - **matchPrecache("/")** instead of NavigationRoute or setDefaultHandler: minimal change, reuses existing precached content, only affects the SPA route handler. No new route infrastructure needed.
+
+## 2026-05-31 — Archive operations for OpenSpec changes
+
+### Actions
+
+- Archived change `refactor-zenfs-hook` → `openspec/changes/archive/2026-05-31-refactor-zenfs-hook/` after syncing delta specs into `zenfs-integration`.
+- Attempted to archive `implement-epub-viewer` but target archive `openspec/changes/archive/2026-05-31-implement-epub-viewer/` already exists; archive of that change was not performed.
+
+### Notes
+
+- The `refactor-zenfs-hook` delta added the `useZenFSSnapshot` hook requirement and standalone mutator functions; these were integrated into `openspec/specs/zenfs-integration/spec.md` before archiving.
+- `implement-epub-viewer` had incomplete artifacts (design, specs) but user confirmed archival; operation failed due to existing archive directory — please resolve the existing archive (rename/delete) or choose a different archive date and retry.
 - **Fallback kept**: If the precached root is somehow unavailable (unlikely with injectManifest), the old redirect behavior still works.
 
 ## 2026-05-26 — SW Routing Fix
