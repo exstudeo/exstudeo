@@ -10,8 +10,9 @@
 import { useEffect, useRef, useState } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@workspace/ui/components/tabs"
-import { mountBackend, markSkipped } from "@/lib/zenfs"
-import { loadMounts, queryHandlePermission } from "@/lib/mount-store"
+import { mountBackend, markDenied } from "@/lib/zenfs"
+import { loadMounts } from "@/lib/mount-store"
+import { BackendValidationError } from "@/lib/backend-resolver"
 import { getAllConfigs } from "@/lib/config-store"
 
 import { SPA_ROUTES } from "../../route.path"
@@ -41,37 +42,22 @@ export function AppShell() {
 
         // Check permissions for mounted entries — after a browser restart,
         // FSA handles stored in IndexedDB lose their permission grant.
-        // queryPermission is fast (no browser prompt — only checks state).
-        const deniedIds: string[] = []
-        const validEntries: typeof entries = []
+        // `mountBackend()` calls `resolveBackendConfig()` which validates
+        // each backend and throws `BackendValidationError` on failure.
         for (const entry of entries) {
-          if (!entry.mounted) {
-            // Register unmounted entries so they appear in the UI
-            validEntries.push(entry)
-            continue
-          }
-          const granted = await queryHandlePermission(entry.handle)
-          if (!granted) {
-            deniedIds.push(entry.id)
-            // Still track the entry even if permission denied
-            validEntries.push({ ...entry, mounted: false })
-          } else {
-            validEntries.push(entry)
-          }
-        }
-
-        // Track denied IDs in the singleton so the UI can show reconnect
-        if (deniedIds.length > 0) {
-          markSkipped(deniedIds)
-        }
-
-        // Mount each entry individually — ZenFS supports dynamic mounts
-        for (const entry of validEntries) {
           if (!entry.mounted) continue
           try {
             await mountBackend(entry)
           } catch (e) {
-            console.warn(`[AppShell] Failed to mount "${entry.mountPath}":`, e)
+            if (e instanceof BackendValidationError) {
+              markDenied(entry.id, e.message)
+              console.warn(
+                `[AppShell] Backend validation failed for "${entry.mountPath}" (${entry.backend.kind}):`,
+                e.message,
+              )
+            } else {
+              console.warn(`[AppShell] Failed to mount "${entry.mountPath}":`, e)
+            }
           }
         }
 

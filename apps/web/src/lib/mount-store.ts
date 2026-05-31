@@ -1,9 +1,9 @@
 /**
  * Persistent storage for directory mount entries using IndexedDB.
  *
- * Each mount entry stores a {@link FileSystemDirectoryHandle} (which supports
- * structured cloning) along with metadata — allowing the user to persist
- * directory picks across sessions, toggle mounts on/off, and delete entries.
+ * Each mount entry stores a {@link BackendConfig} which describes the ZenFS
+ * backend type and its configuration (e.g., FSA directory handle or IndexedDB
+ * store name).  The legacy `handle` field is preserved for backward compat.
  *
  * @module mount-store
  */
@@ -12,8 +12,37 @@ const DB_NAME = "exstudeo-mounts"
 const DB_VERSION = 1
 const STORE_NAME = "mounts"
 
+// ── Backend config types ──────────────────────────────────────────────────
+
+/** Configuration for a File System Access API backend. */
+export interface FsaConfig {
+  kind: "fsa"
+  /** The directory handle for the mounted directory. */
+  handle: FileSystemDirectoryHandle
+}
+
+/** Configuration for an IndexedDB backend. */
+export interface IndexedDBConfig {
+  kind: "indexeddb"
+  /**
+   * Name of the IndexedDB database.
+   * Defaults to auto-derived from `mountPath` if not provided.
+   */
+  storeName?: string
+}
+
 /**
- * A persisted mount entry backed by a File System Access API directory handle.
+ * Discriminated union of all supported ZenFS backend configurations.
+ *
+ * To add a new backend, add a new variant here and a corresponding
+ * case in {@link resolveBackendConfig} (in `lib/backend-resolver.ts`).
+ */
+export type BackendConfig = FsaConfig | IndexedDBConfig
+
+// ── Mount entry ───────────────────────────────────────────────────────────
+
+/**
+ * A persisted ZenFS mount entry.
  */
 export interface MountEntry {
   /** Unique identifier (crypto.randomUUID()). */
@@ -22,10 +51,21 @@ export interface MountEntry {
   name: string
   /** Virtual mount path in ZenFS, e.g. "/notes". Must be unique across entries. */
   mountPath: string
-  /** The FSA directory handle — storable in IndexedDB via structured cloning. */
-  handle: FileSystemDirectoryHandle
+  /**
+   * Backend configuration — describes which backend type and how to configure it.
+   * Required for all new entries.
+   */
+  backend: BackendConfig
   /** Whether this entry is currently mounted in ZenFS. */
   mounted: boolean
+  /**
+   * The FSA directory handle — storable in IndexedDB via structured cloning.
+   * @deprecated Use `backend.kind === 'fsa' && backend.handle` instead.
+   *   Kept for backward compatibility with entries persisted before
+   *   multi-backend support.  Set alongside `backend` on new FSA entries
+   *   so old code can still read it.
+   */
+  handle?: FileSystemDirectoryHandle
 }
 
 /**
@@ -44,6 +84,26 @@ export function normaliseMountPath(path: string): string {
   if (!p.startsWith("/")) p = "/" + p
   p = p.replace(/\/+$/, "")
   return p || "/epubs"
+}
+
+// ---------------------------------------------------------------------------
+// Normalization (backward compat)
+// ---------------------------------------------------------------------------
+
+/**
+ * Synthesize a `backend` field for legacy entries that have `handle` but
+ * no `backend`.  New entries always have `backend` set; this ensures old
+ * persisted data works seamlessly.
+ */
+export function normalizeMountEntry(entry: MountEntry): MountEntry {
+  // If backend is missing but handle exists, synthesize FSA config
+  if (!entry.backend && entry.handle) {
+    return {
+      ...entry,
+      backend: { kind: "fsa", handle: entry.handle },
+    }
+  }
+  return entry
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +138,9 @@ export async function loadMounts(): Promise<MountEntry[]> {
     const store = tx.objectStore(STORE_NAME)
     const request = store.getAll()
     request.onsuccess = () => {
-      resolve(request.result as MountEntry[])
+      const raw = request.result as MountEntry[]
+      // Normalize legacy entries (handle but no backend → synthesize FSA config)
+      resolve(raw.map(normalizeMountEntry))
     }
     request.onerror = () => reject(request.error)
     tx.oncomplete = () => db.close()
@@ -87,13 +149,21 @@ export async function loadMounts(): Promise<MountEntry[]> {
 
 /**
  * Save a new mount entry to IndexedDB.
+ *
+ * For FSA entries, the legacy `handle` field is also written for backward
+ * compatibility with any code still reading it directly.
  */
 export async function saveMount(entry: MountEntry): Promise<void> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite")
     const store = tx.objectStore(STORE_NAME)
-    const request = store.put(entry)
+    // Ensure backward compat: set handle on FSA entries
+    const toSave = { ...entry }
+    if (entry.backend.kind === "fsa" && !toSave.handle) {
+      toSave.handle = entry.backend.handle
+    }
+    const request = store.put(toSave)
     request.onsuccess = () => resolve()
     request.onerror = () => reject(request.error)
     tx.oncomplete = () => db.close()
@@ -102,6 +172,9 @@ export async function saveMount(entry: MountEntry): Promise<void> {
 
 /**
  * Update specific fields of an existing mount entry.
+ *
+ * If the update changes the backend on an FSA entry, the legacy `handle`
+ * field is synced to match `backend.handle`.
  */
 export async function updateMount(
   id: string,
@@ -119,6 +192,10 @@ export async function updateMount(
         return
       }
       const updated = { ...existing, ...partial }
+      // Keep legacy handle in sync for FSA entries
+      if (updated.backend?.kind === "fsa") {
+        updated.handle = updated.backend.handle
+      }
       store.put(updated)
     }
     tx.oncomplete = () => {

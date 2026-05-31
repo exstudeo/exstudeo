@@ -2,9 +2,9 @@
  * Global ZenFS singleton — exposes the virtual filesystem.
  *
  * The exported `promises` object provides a POSIX filesystem API backed by
- * the user's selected directories via the WebAccess backend.
+ * the user's configured backends (File System Access, IndexedDB, etc.).
  *
- * Supports dynamic mount/unmount at runtime.
+ * Supports dynamic mount/unmount at runtime for any backend type.
  *
  * @module zenfs
  */
@@ -14,13 +14,15 @@ import {
   promises as zenfsPromises,
   mount as zenfsMount,
   umount as zenfsUmount,
-  resolveMountConfig,
 } from "@zenfs/core"
-import { WebAccess } from "@zenfs/dom"
 import {
   requestHandlePermission,
   type MountEntry,
 } from "@/lib/mount-store"
+import {
+  resolveBackendConfig,
+  BackendValidationError,
+} from "@/lib/backend-resolver"
 
 // ── Reactive state ────────────────────────────────────────────────────────
 
@@ -28,22 +30,23 @@ type Listener = () => void
 
 /** All mount entries, including unmounted ones. */
 let _mountEntries: MountEntry[] = []
-let _skippedIds = new Set<string>()
+/** entryId → reason string for entries that failed to mount. */
+let _deniedEntries = new Map<string, string>()
 const _listeners = new Set<Listener>()
 
 /** Cached snapshot for useSyncExternalStore — updated only on change. */
 let _snapshot: {
   entries: MountEntry[]
-  deniedIds: string[]
+  deniedEntries: ReadonlyMap<string, string>
 } = {
   entries: [],
-  deniedIds: [],
+  deniedEntries: new Map(),
 }
 
 function notify() {
   _snapshot = {
     entries: [..._mountEntries],
-    deniedIds: [..._skippedIds],
+    deniedEntries: new Map(_deniedEntries),
   }
   for (const listener of _listeners) listener()
 }
@@ -74,38 +77,48 @@ export const fs = zenfsFs
 export const promises = zenfsPromises
 
 /**
- * Mark mount entries whose FSA handle permission was denied.
- * They are stored but won't be passed to ZenFS until reconnected.
+ * Mark mount entries whose backend validation failed.
+ * They are stored but won't be mounted in ZenFS until the issue is resolved.
+ *
+ * @param id - The entry id.
+ * @param reason - Human-readable reason why the mount was denied.
  */
-export function markSkipped(ids: string[]): void {
-  for (const id of ids) {
-    _skippedIds.add(id)
-  }
+export function markDenied(id: string, reason: string): void {
+  _deniedEntries.set(id, reason)
   notify()
 }
 
 /**
- * Remove an entry from the skipped set (after permission is re-granted).
+ * Remove an entry from the denied map (after reconnection or mount success).
  */
-export function clearSkipped(id: string): void {
-  _skippedIds.delete(id)
+export function clearDenied(id: string): void {
+  _deniedEntries.delete(id)
   notify()
 }
 
+/**
+ * Attempt to reconnect a mount entry that was previously denied.
+ *
+ * For FSA entries, re-prompts the user for permission before remounting.
+ * For IndexedDB entries, attempts a direct remount (no permission needed).
+ */
 export async function reconnectMount(entryId: string): Promise<void> {
   const entry = _mountEntries.find((e) => e.id === entryId)
   if (!entry) {
     throw new Error(`Mount entry "${entryId}" not found`)
   }
 
-  const granted = await requestHandlePermission(entry.handle)
-  if (!granted) {
-    throw new Error("Permission denied for directory handle.")
+  // Re-validate based on backend kind
+  if (entry.backend.kind === "fsa") {
+    const granted = await requestHandlePermission(entry.backend.handle)
+    if (!granted) {
+      throw new Error("Permission denied for directory handle.")
+    }
   }
+  // IndexedDB entries need no permission re-prompt — just try to mount
 
-  // Mount the backend (handles already-configured state)
   await mountBackend(entry)
-  clearSkipped(entryId)
+  clearDenied(entryId)
   notifyServiceWorker()
 }
 
@@ -152,24 +165,21 @@ export function deregisterMountEntry(id: string): void {
 
 /**
  * Mount a backend in ZenFS and register it in local state.
- * Assumes the entry's handle has been granted permission.
+ * Uses {@link resolveBackendConfig} to validate and create the backend
+ * for the entry's configured backend type.
  */
 export async function mountBackend(entry: MountEntry): Promise<void> {
   // Ensure the mount-point directory exists (dynamic mount() requires it).
-  // configure() did this internally, but per-entry mountBackend() does not.
   try {
     await zenfsPromises.mkdir(entry.mountPath, { recursive: true })
   } catch {
     // already exists — fine
   }
 
-  const resolved = await resolveMountConfig({
-    backend: WebAccess,
-    handle: entry.handle,
-  })
+  const resolved = await resolveBackendConfig(entry.backend)
   zenfsMount(entry.mountPath, resolved)
 
-  registerMountEntry({ ...entry, mounted: true })  // reuse, always marks mounted: true
+  registerMountEntry({ ...entry, mounted: true })
   notifyServiceWorker()
 }
 /**

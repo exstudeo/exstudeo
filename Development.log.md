@@ -1,5 +1,30 @@
 # Development Log
 
+## 2026-05-31 — Multi-backend ZenFS mounting with IndexedDB support
+
+### Done
+
+- **Added `BackendConfig` discriminated union** (`FsaConfig` | `IndexedDBConfig`) to `mount-store.ts` to generalize backend types beyond the hard-coded `WebAccess`.
+- **Created `lib/backend-resolver.ts`** — shared module with `resolveBackendConfig()` that maps `BackendConfig` → ZenFS mount config. Only module importing backend implementations (`WebAccess`, `IndexedDB`) from `@zenfs/dom`.
+- **Refactored `lib/zenfs.ts`** — removed direct `WebAccess` import, uses `resolveBackendConfig()` for all mounts; refactored `skippedIds` (Set) → `deniedEntries` (Map<string, string>) with reason strings for backend-aware error displays.
+- **Refactored `sw-routes/zenfs-sw.ts`** — uses `resolveBackendConfig()` instead of hardcoded `WebAccess`; mount-key tracking now includes backend kind (`mountPath::kind`) for change detection.
+- **Updated `hooks/use-zenfs.ts`** — `ZenFSState.deniedEntries` is now `ReadonlyMap<string, string>` instead of `skippedIds: string[]`.
+- **Updated `components/layout/mounts-dialog.tsx`** — added backend type dropdown (File System Access / IndexedDB) in the add form; conditional flow (FSA shows directory picker, IndexedDB creates immediately); mount rows show backend type label ("FSA" / "IndexedDB"); reconnect button only for FSA denied entries.
+- **Updated `components/layout/app-shell.tsx`** — startup mount validation now uses `mountBackend()` + `BackendValidationError` instead of separate `queryHandlePermission()` + `markSkipped()`.
+- **Backward compatibility**: `MountEntry.handle` is now optional/deprecated; `normalizeMountEntry()` synthesizes `backend: { kind: 'fsa', handle }` for legacy entries; `loadMounts()` normalizes on read; `saveMount()` still writes `handle` for old code paths.
+- **IndexedDB store name**: auto-derived from mount path via `storeNameFromPath()` (e.g., `/cache` → `zenfs-cache`).
+
+### Design decisions
+
+- **Discriminated union over strategy pattern** — chosen because it's simpler for 2 backends, gives exhaustive TypeScript checking, and IndexedDB stores it naturally. Can evolve to strategy pattern at 4+ backends.
+- **Shared resolver module** — `lib/backend-resolver.ts` is imported by both frontend and SW to prevent divergence. Only this module touches backend implementations.
+- **Mount key includes backend kind in SW** — `_prevMountKeys` uses `"mountPath::kind"` format so switching an FSA mount to IndexedDB at the same path is detected as a change.
+- **IndexedDB reconnect is no-op**: no permission prompts needed, just a remount attempt.
+
+### Inconsistency of documentation
+
+- `openspec/specs/mount-management/spec.md` and `openspec/specs/zenfs-integration/spec.md` still describe WebAccess-only behavior. Delta specs created in this change cover the new multi-backend requirements.
+
 ## 2026-05-30 — Rewrote public-facing README.md
 
 ### Done

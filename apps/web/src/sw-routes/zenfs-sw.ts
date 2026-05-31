@@ -2,8 +2,9 @@
  * SW-side ZenFS singleton — independent instance from the frontend.
  *
  * Reads mount entries from IndexedDB (same store as the frontend) and
- * configures `@zenfs/core` with `WebAccess` backends. Supports lazy
- * reconfiguration via a dirty flag set by postMessage from the frontend.
+ * configures `@zenfs/core` with the appropriate backends for each entry.
+ * Supports lazy reconfiguration via a dirty flag set by postMessage from
+ * the frontend.
  *
  * @module zenfs-sw
  */
@@ -13,21 +14,24 @@ import {
   fs as zenfsFs,
   mount as zenfsMount,
   promises as zenfsPromises,
-  resolveMountConfig,
   umount as zenfsUmount,
-  type Backend,
 } from "@zenfs/core"
-import { WebAccess } from "@zenfs/dom"
 import { loadMounts } from "../lib/mount-store"
+import {
+  resolveBackendConfig,
+  type BackendConfig,
+} from "../lib/backend-resolver"
 
 // ── Internal state ────────────────────────────────────────────────────────
 
 let _configured = false
 let _mountsDirty = false
 
-/** Set of mount paths from the last successful configure — used to avoid
- *  re-mounting the same paths, which would throw "Mount point is already in use." */
-let _prevMountPaths = new Set<string>()
+/** Set of `${mountPath}::${backendKind}` strings from the last successful
+ *  configure — used to avoid re-mounting the same paths, which would throw
+ *  "Mount point is already in use."  Includes backend kind so a path
+ *  changing backend type (e.g., FSA → IndexedDB) is detected as a change. */
+let _prevMountKeys = new Set<string>()
 
 /**
  * Ensure the SW's ZenFS instance is configured with the latest mounts from
@@ -35,10 +39,10 @@ let _prevMountPaths = new Set<string>()
  *
  * Re-reads from IDB and reconfigures when:
  * - Not yet configured, or
- * - `_mountsDirty` is true (set by postMessage) **and** the set of mount
- *   paths has changed.  If the paths are the same, ZenFS already has
- *   those mounts; re-configuring would fail with "Mount point is already
- *   in use."
+ * - `_mountsDirty` is true (set by postMessage) **and** the set of
+ *   mount paths or their backend kinds has changed.  If nothing changed,
+ *   ZenFS already has those mounts; re-configuring would fail with
+ *   "Mount point is already in use."
  *
  * **Note about stale file data:** when both SW and frontend share a
  * mounted backend, the SW may see stale inode data if the frontend
@@ -47,37 +51,45 @@ let _prevMountPaths = new Set<string>()
  * every request rather than caching inodes).
  */
 export async function ensureZenFS(): Promise<void> {
-  // Re-read mount entries from IndexedDB
+  // Re-read mount entries from IndexedDB (normalized by loadMounts)
   const entries = await loadMounts()
 
-  // Build mount map from mounted entries (mountPath → handle)
-  const nextMounts = new Map<string, FileSystemDirectoryHandle>()
+  // Build mount map from mounted entries (mountPath → BackendConfig)
+  const nextMounts = new Map<string, BackendConfig>()
   for (const entry of entries) {
     if (!entry.mounted) continue
-    nextMounts.set(entry.mountPath, entry.handle)
+    nextMounts.set(entry.mountPath, entry.backend)
   }
 
-  const nextMountPaths = new Set(nextMounts.keys())
+  // Build mount keys that include backend kind (for change detection)
+  const nextMountKeys = new Set<string>()
+  for (const [mp, cfg] of nextMounts) {
+    nextMountKeys.add(`${mp}::${cfg.kind}`)
+  }
 
   // First-time initialization: if nothing configured yet, do initial
   // configure (or early-return if nothing to mount).
   if (!_configured) {
-    if (nextMountPaths.size === 0) return // nothing to mount
+    if (nextMounts.size === 0) return // nothing to mount
 
-    const mounts: Record<string, { backend: Backend; handle: FileSystemDirectoryHandle }> = {}
-    for (const [mp, handle] of nextMounts) {
-      mounts[mp] = { backend: WebAccess, handle }
+    const mounts: Record<string, Awaited<ReturnType<typeof resolveBackendConfig>>> = {}
+    for (const [mp, cfg] of nextMounts) {
+      try {
+        mounts[mp] = await resolveBackendConfig(cfg)
+      } catch (e) {
+        console.error(`[SW ZenFS] failed to resolve backend for "${mp}":`, e)
+      }
     }
     try {
-      console.log("[SW ZenFS] initial configure, mounting:", [...nextMountPaths])
+      console.log("[SW ZenFS] initial configure, mounting:", [...nextMountKeys])
       await zenfsConfigure({ mounts })
     } catch (e) {
-      console.error("[SW ZenFS] initial configure failed (permission revoked?):", e)
+      console.error("[SW ZenFS] initial configure failed:", e)
       _mountsDirty = true
       return
     }
     _configured = true
-    _prevMountPaths = new Set(nextMountPaths)
+    _prevMountKeys = new Set(nextMountKeys)
     _mountsDirty = false
     return
   }
@@ -85,8 +97,8 @@ export async function ensureZenFS(): Promise<void> {
   // Already configured — compute deltas against previous mount set.
   //   toUnmount = prev – next   (paths that were mounted but no longer are)
   //   toMount   = next – prev   (paths that are now mounted but weren't before)
-  const toUnmount = setDifference(_prevMountPaths, nextMountPaths)
-  const toMount = setDifference(nextMountPaths, _prevMountPaths)
+  const toUnmount = setDifference(_prevMountKeys, nextMountKeys)
+  const toMount = setDifference(nextMountKeys, _prevMountKeys)
 
   if (toUnmount.size === 0 && toMount.size === 0) {
     _mountsDirty = false
@@ -94,7 +106,8 @@ export async function ensureZenFS(): Promise<void> {
   }
 
   // ── Unmount stale paths ──────────────────────────────────────────────
-  for (const mp of toUnmount) {
+  for (const key of toUnmount) {
+    const mp = key.split("::")[0] // extract mountPath from "mountPath::kind"
     try {
       zenfsUmount(mp)
       console.log("[SW ZenFS] unmounted:", mp)
@@ -104,21 +117,23 @@ export async function ensureZenFS(): Promise<void> {
   }
 
   // ── Mount new paths ──────────────────────────────────────────────────
-  for (const mp of toMount) {
-    const handle = nextMounts.get(mp)!
+  for (const key of toMount) {
+    const mp = key.split("::")[0] // extract mountPath from "mountPath::kind"
+    const cfg = nextMounts.get(mp)
+    if (!cfg) continue
     try {
       // Ensure the mount-point directory exists
       try { await zenfsPromises.mkdir(mp, { recursive: true }) } catch { /* already exists */ }
 
-      const resolved = await resolveMountConfig({ backend: WebAccess, handle })
+      const resolved = await resolveBackendConfig(cfg)
       zenfsMount(mp, resolved)
-      console.log("[SW ZenFS] mounted:", mp)
+      console.log("[SW ZenFS] mounted:", mp, `(${cfg.kind})`)
     } catch (e) {
       console.error(`[SW ZenFS] mount failed for "${mp}":`, e)
     }
   }
 
-  _prevMountPaths = new Set(nextMountPaths)
+  _prevMountKeys = new Set(nextMountKeys)
   _mountsDirty = false
 }
 

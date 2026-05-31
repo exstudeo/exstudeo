@@ -84,13 +84,13 @@
 
 ## 11. End-to-End Validation
 
-- [ ] 11.1 Upload a test EPUB, verify `.epubdir/` contains `spine.json`, `toc.json`, and `sidebar.html` with valid content
-- [ ] 11.2 Navigate to an EPUB chapter URL, verify the page has sidebar + content layout
-- [ ] 11.3 Verify `document.title` is set correctly (book name + page name)
-- [ ] 11.4 Verify sidebar TOC links navigate to correct chapters
-- [ ] 11.5 Verify current chapter is highlighted in sidebar
-- [ ] 11.6 Test on mobile viewport: sidebar hidden by default, toggle works
-- [ ] 11.7 Test with EPUB 2 (NCX-based TOC) and EPUB 3 (NAV-based TOC)
+- [x] 11.1 Upload a test EPUB, verify `.epubdir/` contains `spine.json`, `toc.json`, and `sidebar.html` with valid content
+- [x] 11.2 Navigate to an EPUB chapter URL, verify the page has sidebar + content layout
+- [x] 11.3 Verify `document.title` is set correctly (book name + page name)
+- [x] 11.4 Verify sidebar TOC links navigate to correct chapters
+- [x] 11.5 Verify current chapter is highlighted in sidebar
+- [x] 11.6 Test on mobile viewport: sidebar hidden by default, toggle works
+- [x] 11.7 Test with EPUB 2 (NCX-based TOC) and EPUB 3 (NAV-based TOC)
 - [x] 11.8 Run `npm run typecheck` from monorepo root
 - [x] 11.9 Run `cd apps/web && npm run test:run` and verify all tests pass
 - [x] 11.10 Update `Development.log.md` with summary

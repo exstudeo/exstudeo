@@ -36,15 +36,23 @@ export interface ZenFSState {
   hasEntries: boolean
   /** All mount entries (including unmounted). */
   entries: MountEntry[]
-  /** IDs of entries whose FSA handle permission was denied on startup. */
-  skippedIds: string[]
+  /**
+   * Entries that failed to mount, mapped to their failure reason.
+   * FSA entries appear here when permission is denied; IndexedDB entries
+   * appear here when `isAvailable()` returns false.
+   */
+  deniedEntries: ReadonlyMap<string, string>
   /** Persist a new mount entry and mount it. */
   addMount: (entry: MountEntry) => Promise<void>
   /** Toggle a mount entry between mounted/unmounted. */
   toggleMount: (entry: MountEntry) => Promise<void>
   /** Permanently remove a mount entry. */
   removeMount: (id: string) => Promise<void>
-  /** Reconnect a denied mount entry (prompts user for permission). */
+  /**
+   * Reconnect a denied mount entry.
+   * For FSA entries, re-prompts the user for directory permission.
+   * For IndexedDB entries, re-attempts mount without prompting.
+   */
   reconnectMount: (id: string) => Promise<void>
 }
 
@@ -104,7 +112,7 @@ const removeMount = useCallback(async (id: string) => {
     promises,
     hasEntries: snapshot.entries.length > 0,
     entries: snapshot.entries,
-    skippedIds: snapshot.deniedIds,
+    deniedEntries: snapshot.deniedEntries,
     addMount,
     toggleMount,
     removeMount,
