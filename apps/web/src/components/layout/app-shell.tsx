@@ -18,9 +18,9 @@ import { getAllConfigs } from "@/lib/config-store"
 import { SPA_ROUTES } from "../../route.path"
 
 const TABS = [
-  { value: SPA_ROUTES[0], label: "Files" },
-  { value: SPA_ROUTES[1], label: "Epub" },
-  { value: SPA_ROUTES[2], label: "Settings" },
+  { value: SPA_ROUTES.files, label: "Files" },
+  { value: SPA_ROUTES.epub, label: "Epub" },
+  { value: SPA_ROUTES.settings, label: "Settings" },
 ] as const
 
 export function AppShell() {
@@ -45,9 +45,10 @@ export function AppShell() {
         // `mountBackend()` calls `resolveBackendConfig()` which validates
         // each backend and throws `BackendValidationError` on failure.
         for (const entry of entries) {
-          if (!entry.mounted) continue
+          if (!entry.shouldBeMounted) continue
           try {
             await mountBackend(entry)
+            console.log(`[AppShell] Mounted "${entry.mountPath}" (${entry.backend.kind})`)
           } catch (e) {
             if (e instanceof BackendValidationError) {
               markDenied(entry.id, e.message)
@@ -111,13 +112,13 @@ export function AppShell() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <TabsContent value={SPA_ROUTES[0]} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <TabsContent value={SPA_ROUTES.files} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
           <Outlet />
         </TabsContent>
-        <TabsContent value={SPA_ROUTES[1]} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <TabsContent value={SPA_ROUTES.epub} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
           <Outlet />
         </TabsContent>
-        <TabsContent value={SPA_ROUTES[2]} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <TabsContent value={SPA_ROUTES.settings} className="m-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
           <Outlet />
         </TabsContent>
       </div>

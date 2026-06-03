@@ -127,8 +127,8 @@ function AddMountForm({ onAdded }: { onAdded: () => void }) {
           name: handle.name,
           mountPath,
           backend: { kind: "fsa", handle },
-          handle, // backward compat
-          mounted: true,
+          //handle, // backward compat
+          shouldBeMounted: true,
         }
 
         await addMountEntry(entry)
@@ -139,7 +139,7 @@ function AddMountForm({ onAdded }: { onAdded: () => void }) {
           name: mountPath, // default name is the mount path
           mountPath,
           backend: { kind: "indexeddb", storeName: storeNameFromPath(mountPath) },
-          mounted: true,
+          shouldBeMounted: true,
         }
 
         // request for persistent storage in best effort.
@@ -300,7 +300,7 @@ function MountRow({ entry, deniedReason, onReconnect, onToggle, onRemove }: Moun
   return (
     <div
       className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-        entry.mounted ? "" : "opacity-50"
+        entry.shouldBeMounted ? "" : "opacity-50"
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -316,7 +316,7 @@ function MountRow({ entry, deniedReason, onReconnect, onToggle, onRemove }: Moun
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onToggle}>
-            {entry.mounted ? (
+            {entry.shouldBeMounted ? (
               <>
                 <PowerOff className="mr-2 size-4" />
                 Unmount

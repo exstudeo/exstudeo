@@ -181,7 +181,7 @@ export async function mountBackend(entry: MountEntry): Promise<void> {
   const resolved = await resolveBackendConfig(entry.backend)
   zenfsMount(entry.mountPath, resolved)
 
-  registerMountEntry({ ...entry, mounted: true })
+  registerMountEntry({ ...entry, shouldBeMounted: true })
   notifyServiceWorker()
 }
 /**
@@ -198,7 +198,7 @@ export async function unmountBackend(entry: MountEntry): Promise<void> {
 
     const idx = _mountEntries.findIndex((e) => e.id === entry.id)
     if (idx !== -1) {
-      _mountEntries[idx] = { ..._mountEntries[idx], mounted: false }
+      _mountEntries[idx] = { ..._mountEntries[idx], shouldBeMounted: false }
     }
   } catch (ex) {
     console.error(`Failed to unmount "${entry.mountPath}":`, ex)
@@ -237,7 +237,7 @@ export async function getMountedPaths(): Promise<string[]> {
 export async function addMountEntry(entry: MountEntry): Promise<void> {
   await saveMount(entry)
 
-  if (entry.mounted) {
+  if (entry.shouldBeMounted) {
     await mountBackend(entry)
   } else {
     registerMountEntry(entry)
@@ -253,12 +253,12 @@ export async function addMountEntry(entry: MountEntry): Promise<void> {
  * @param entry - The mount entry to toggle.
  */
 export async function toggleMountEntry(entry: MountEntry): Promise<void> {
-  if (entry.mounted) {
+  if (entry.shouldBeMounted) {
     await unmountBackend(entry)
-    await updateMount(entry.id, { mounted: false })
+    await updateMount(entry.id, { shouldBeMounted: false })
   } else {
-    await mountBackend({ ...entry, mounted: true })
-    await updateMount(entry.id, { mounted: true })
+    await mountBackend({ ...entry, shouldBeMounted: true })
+    await updateMount(entry.id, { shouldBeMounted: true })
   }
 }
 
@@ -272,7 +272,7 @@ export async function toggleMountEntry(entry: MountEntry): Promise<void> {
  */
 export async function removeMountEntry(id: string): Promise<void> {
   const entry = _mountEntries.find((e) => e.id === id)
-  if (entry?.mounted) {
+  if (entry?.shouldBeMounted) {
     await unmountBackend(entry)
   }
   await deleteMountFromStore(id)

@@ -8,10 +8,19 @@
  * When adding a new route, add it here and then add a corresponding
  * `<Route>` in `App.tsx` with `path={route.slice(1)}`.
  */
-export const SPA_ROUTES = ['/files', '/epub', '/settings'] as const
+export const SPA_ROUTES = {
+  files : "/files",
+  epub : "/epub",
+  settings : "/settings",
+} as const
+
+
+export type SPA_Route = typeof SPA_ROUTES
+
+
 
 /** Type of a single SPA route string */
-export type SPA_ROUTE = (typeof SPA_ROUTES)[number]
+export type SPA_ROUTE = SPA_Route[keyof typeof SPA_ROUTES]
 
 /**
  * Checks whether `pathname` matches a known SPA route prefix.
@@ -23,7 +32,7 @@ export type SPA_ROUTE = (typeof SPA_ROUTES)[number]
  * so routes defined with or without a trailing slash both work correctly.
  */
 export function isSpaRoutePath(pathname: string): boolean {
-  return SPA_ROUTES.some((route) => pathname === route || pathname.startsWith(
+  return Object.values(SPA_ROUTES).some((route) => pathname === route || pathname.startsWith(
     route.endsWith("/") ? route : route + "/"
         )
 

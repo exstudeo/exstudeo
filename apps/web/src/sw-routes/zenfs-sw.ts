@@ -60,7 +60,7 @@ export async function ensureZenFS(): Promise<void> {
   // Build mount map from mounted entries (mountPath → BackendConfig)
   const nextMounts = new Map<string, BackendConfig>()
   for (const entry of entries) {
-    if (!entry.mounted) continue
+    if (!entry.shouldBeMounted) continue
     nextMounts.set(entry.mountPath, entry.backend)
   }
 

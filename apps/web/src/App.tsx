@@ -39,10 +39,10 @@ export function App() {
       <RedirectHandler />
       <Routes>
         <Route element={<AppShell />}>
-          <Route index element={<Navigate to={SPA_ROUTES[0]} replace />} />
-          <Route path={SPA_ROUTES[0].slice(1)} element={<FileExplorerPage />} />  
-          <Route path={SPA_ROUTES[1].slice(1)} element={<EpubExplorerPage />} />
-          <Route path={SPA_ROUTES[2].slice(1)} element={<SettingsPage />} />
+          <Route index element={<Navigate to={SPA_ROUTES.epub} replace />} />
+          <Route path={SPA_ROUTES.files.slice(1)} element={<FileExplorerPage />} />  
+          <Route path={SPA_ROUTES.epub.slice(1)} element={<EpubExplorerPage />} />
+          <Route path={SPA_ROUTES.settings.slice(1)} element={<SettingsPage />} />
           {/*
            * Catch-all for unmatched routes (e.g., `/filesxx`).
            * Redirect to root — the SW will handle 404 if needed.

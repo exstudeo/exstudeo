@@ -56,16 +56,8 @@ export interface MountEntry {
    * Required for all new entries.
    */
   backend: BackendConfig
-  /** Whether this entry is currently mounted in ZenFS. */
-  mounted: boolean
-  /**
-   * The FSA directory handle — storable in IndexedDB via structured cloning.
-   * @deprecated Use `backend.kind === 'fsa' && backend.handle` instead.
-   *   Kept for backward compatibility with entries persisted before
-   *   multi-backend support.  Set alongside `backend` on new FSA entries
-   *   so old code can still read it.
-   */
-  handle?: FileSystemDirectoryHandle
+  /** Whether this entry should be currently mounted in ZenFS. */
+  shouldBeMounted: boolean
 }
 
 /**
@@ -86,29 +78,10 @@ export function normaliseMountPath(path: string): string {
   return p || "/epubs"
 }
 
-// ---------------------------------------------------------------------------
-// Normalization (backward compat)
-// ---------------------------------------------------------------------------
 
-/**
- * Synthesize a `backend` field for legacy entries that have `handle` but
- * no `backend`.  New entries always have `backend` set; this ensures old
- * persisted data works seamlessly.
- */
-export function normalizeMountEntry(entry: MountEntry): MountEntry {
-  // If backend is missing but handle exists, synthesize FSA config
-  if (!entry.backend && entry.handle) {
-    return {
-      ...entry,
-      backend: { kind: "fsa", handle: entry.handle },
-    }
-  }
-  return entry
-}
-
-// ---------------------------------------------------------------------------
+// 
 // Internal helpers
-// ---------------------------------------------------------------------------
+// 
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -139,8 +112,7 @@ export async function loadMounts(): Promise<MountEntry[]> {
     const request = store.getAll()
     request.onsuccess = () => {
       const raw = request.result as MountEntry[]
-      // Normalize legacy entries (handle but no backend → synthesize FSA config)
-      resolve(raw.map(normalizeMountEntry))
+      resolve(raw)
     }
     request.onerror = () => reject(request.error)
     tx.oncomplete = () => db.close()
@@ -149,20 +121,13 @@ export async function loadMounts(): Promise<MountEntry[]> {
 
 /**
  * Save a new mount entry to IndexedDB.
- *
- * For FSA entries, the legacy `handle` field is also written for backward
- * compatibility with any code still reading it directly.
  */
 export async function saveMount(entry: MountEntry): Promise<void> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite")
     const store = tx.objectStore(STORE_NAME)
-    // Ensure backward compat: set handle on FSA entries
     const toSave = { ...entry }
-    if (entry.backend.kind === "fsa" && !toSave.handle) {
-      toSave.handle = entry.backend.handle
-    }
     const request = store.put(toSave)
     request.onsuccess = () => resolve()
     request.onerror = () => reject(request.error)
@@ -192,10 +157,6 @@ export async function updateMount(
         return
       }
       const updated = { ...existing, ...partial }
-      // Keep legacy handle in sync for FSA entries
-      if (updated.backend?.kind === "fsa") {
-        updated.handle = updated.backend.handle
-      }
       store.put(updated)
     }
     tx.oncomplete = () => {
